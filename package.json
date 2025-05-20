@@ -1,0 +1,15 @@
+{
+  "name": "personal-analysis-site",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "body-parser": "^1.20.0"
+  }
+}
