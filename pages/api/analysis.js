@@ -1,45 +1,51 @@
 // pages/api/analysis.js
-import fs from 'fs';
-import path from 'path';
+import fs from 'fs'
+import path from 'path'
 
-// Путь к файлу с отчётами
-const dataFile = path.join(process.cwd(), 'data', 'reports.json');
+// жёсткий путь к data/reports.json в корне проекта
+const filePath = path.join(process.cwd(), 'data', 'reports.json')
 
-// Утилита для чтения JSON-тела POST-запроса
-async function parseBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => resolve(JSON.parse(body)));
-    req.on('error', reject);
-  });
-}
+// Настройка Next.js — обязательно Node.js, чтобы мы могли юзать fs:
+export const config = { runtime: 'nodejs' }
 
-export default async function handler(req, res) {
+export default function handler(req, res) {
+  // 1) GET — отдать все отчёты
   if (req.method === 'GET') {
     try {
-      const content = fs.readFileSync(dataFile, 'utf8');
-      return res.status(200).json(JSON.parse(content));
+      const raw = fs.readFileSync(filePath, 'utf8')
+      const arr = JSON.parse(raw)
+      return res.status(200).json(arr)
     } catch {
-      return res.status(200).json([]);  // если файла нет, возвращаем пустой массив
+      // если файла нет или JSON кривой — возвращаем пустой массив
+      return res.status(200).json([])
     }
   }
 
+  // 2) POST — добавить новый отчёт
   if (req.method === 'POST') {
-    const { date, html } = await parseBody(req);
-    let reports = [];
-    try {
-      reports = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-    } catch {
-      // файл ещё не создан — оставляем reports = []
+    // Next.js сам распарсит JSON в req.body
+    const { date, html } = req.body || {}
+    if (!date || !html) {
+      return res.status(400).json({ error: 'Missing date or html' })
     }
-    reports.unshift({ date, html });
-    fs.mkdirSync(path.dirname(dataFile), { recursive: true });
-    fs.writeFileSync(dataFile, JSON.stringify(reports, null, 2));
-    return res.status(200).json({ success: true });
+
+    let arr = []
+    try {
+      const raw = fs.readFileSync(filePath, 'utf8')
+      arr = JSON.parse(raw)
+    } catch {
+      arr = []
+    }
+
+    // пушим в начало
+    arr.unshift({ date, html })
+    // сохраняем красиво отформатированным
+    fs.writeFileSync(filePath, JSON.stringify(arr, null, 2), 'utf8')
+
+    return res.status(200).json({ success: true })
   }
 
-  // остальные методы не поддерживаются
-  res.setHeader('Allow', ['GET','POST']);
-  res.status(405).end(`Method ${req.method} Not Allowed`);
+  // 3) всё остальное — запрещено
+  res.setHeader('Allow', ['GET', 'POST'])
+  res.status(405).end(`Method ${req.method} Not Allowed`)
 }
