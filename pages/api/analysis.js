@@ -2,12 +2,10 @@
 import fs from 'fs';
 import path from 'path';
 
-export const config = {
-  api: { bodyParser: false }
-};
-
+// Путь к файлу с отчётами
 const dataFile = path.join(process.cwd(), 'data', 'reports.json');
 
+// Утилита для чтения JSON-тела POST-запроса
 async function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -23,20 +21,25 @@ export default async function handler(req, res) {
       const content = fs.readFileSync(dataFile, 'utf8');
       return res.status(200).json(JSON.parse(content));
     } catch {
-      return res.status(200).json([]);
+      return res.status(200).json([]);  // если файла нет, возвращаем пустой массив
     }
   }
+
   if (req.method === 'POST') {
     const { date, html } = await parseBody(req);
     let reports = [];
     try {
       reports = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-    } catch {}
+    } catch {
+      // файл ещё не создан — оставляем reports = []
+    }
     reports.unshift({ date, html });
     fs.mkdirSync(path.dirname(dataFile), { recursive: true });
     fs.writeFileSync(dataFile, JSON.stringify(reports, null, 2));
     return res.status(200).json({ success: true });
   }
+
+  // остальные методы не поддерживаются
   res.setHeader('Allow', ['GET','POST']);
   res.status(405).end(`Method ${req.method} Not Allowed`);
 }
